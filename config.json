@@ -1,0 +1,49 @@
+{
+  "pageTitle": "Starlane ✨",
+  "theme": "auto",
+  "backgroundType": "color",
+  "backgroundColor": "#f0f2f5",
+  "backgroundImage": "",
+  "groups": [
+    {
+      "name": "媒体服务",
+      "items": [
+        {
+          "name": "Jellyfin",
+          "url": "http://192.168.1.10:8096",
+          "icon": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyfin.png"
+        },
+        {
+          "name": "Plex",
+          "url": "http://192.168.1.10:32400",
+          "icon": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/plex.png"
+        }
+      ]
+    },
+    {
+      "name": "管理工具",
+      "items": [
+        {
+          "name": "Portainer",
+          "url": "http://192.168.1.10:9000",
+          "icon": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/portainer.png"
+        },
+        {
+          "name": "NAS",
+          "url": "http://192.168.1.10:5000",
+          "icon": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/synology.png"
+        }
+      ]
+    },
+    {
+      "name": "下载",
+      "items": [
+        {
+          "name": "qBittorrent",
+          "url": "http://192.168.1.10:8080",
+          "icon": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/qbittorrent.png"
+        }
+      ]
+    }
+  ]
+}

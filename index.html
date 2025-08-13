@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h2 id="sidebar-title">Starlane</h2>
+        </div>
+        <ul id="sidebar-group-list">
+            </ul>
+    </nav>
+
+    <div id="main-content-wrapper">
+        <button id="menu-toggle-btn" class="menu-toggle-btn">☰</button>
+
+        <header>
+            <h1 id="page-title"></h1>
+            <div class="search-wrapper">
+                <label for="search-input"></label><input type="search" id="search-input" placeholder="搜索服务...">
+            </div>
+        </header>
+        <main id="starlane-container">
+            </main>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-modal-btn" class="close-btn">&times;</button>
+            <h2>设置</h2>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="services">服务管理</button>
+                <button class="tab-btn" data-tab="groups">分类管理</button>
+                <button class="tab-btn" data-tab="app-settings">页面设置</button>
+            </div>
+
+            <div id="services-tab" class="tab-content active">
+                <div class="table-wrapper">
+                    <table id="config-table">
+                        <thead>
+                            <tr>
+                                <th>服务名称</th>
+                                <th>网址 (URL)</th>
+                                <th>图标地址</th>
+                                <th class="preview-col">预览</th>
+                                <th>所属分类</th>
+                                <th class="actions-col">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="config-table-body">
+                            </tbody>
+                    </table>
+                </div>
+                <button id="add-row-btn" class="action-btn">✚ 添加一个服务</button>
+            </div>
+
+            <div id="groups-tab" class="tab-content">
+                <p class="modal-desc">在这里添加、删除、重命名和拖拽排序分类。</p>
+                <div id="group-manager">
+                    <ul id="group-list" class="sortable-list">
+                        </ul>
+                    <div class="add-group-wrapper">
+                        <label for="new-group-name"></label><input type="text" id="new-group-name" placeholder="输入新分类名...">
+                        <button id="add-group-btn" class="action-btn">✚ 添加分类</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="app-settings-tab" class="tab-content">
+                <form id="app-settings-form" class="settings-form">
+                    <div class="form-group">
+                        <label for="page-title-input">页面标题</label>
+                        <input type="text" id="page-title-input" name="pageTitle">
+                    </div>
+                    <div class="form-group">
+                        <label for="theme-select">主题</label>
+                        <select id="theme-select" name="theme">
+                            <option value="light">亮色</option>
+                            <option value="dark">暗色</option>
+                            <option value="auto">跟随系统</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>背景设置</label>
+                        <div class="radio-group">
+                            <input type="radio" id="bg-type-color" name="backgroundType" value="color" checked>
+                            <label for="bg-type-color">纯色</label>
+                            <input type="radio" id="bg-type-image" name="backgroundType" value="image">
+                            <label for="bg-type-image">图片</label>
+                        </div>
+                    </div>
+                    <div class="form-group" id="bg-color-wrapper">
+                        <label for="bg-color-input">背景颜色</label>
+                        <input type="color" id="bg-color-input" name="backgroundColor" value="#f0f2f5">
+                    </div>
+                    <div class="form-group hidden" id="bg-image-wrapper">
+                        <label for="bg-image-input">背景图片URL</label>
+                        <input type="url" id="bg-image-input" name="backgroundImage" placeholder="https://...">
+                        <label for="bg-file-input" class="upload-label">或者，从本地上传图片：</label>
+                        <input type="file" id="bg-file-input" accept="image/*">
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-actions">
+                 <div class="main-actions">
+                    <button id="save-config-btn" class="action-btn primary">保存并刷新</button>
+                    <button id="reset-config-btn" class="action-btn danger">重置为默认配置</button>
+                </div>
+                <div class="io-actions">
+                    <button id="export-config-btn" class="action-btn">导出为文件</button>
+                    <button id="import-config-btn" class="action-btn">从文件导入</button>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="settings-btn" class="settings-btn" title="设置">⚙️</button>
+
+</body>
+</html>
