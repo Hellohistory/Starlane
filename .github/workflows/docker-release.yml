@@ -15,6 +15,7 @@ on:
 jobs:
   build-and-push-docker:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,8 +46,6 @@ jobs:
           images: |
             ghcr.io/${{ github.repository }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}
-          flavor: |
-            latest=auto
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
@@ -71,7 +70,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Archive release files
-        run: zip starlane-${{ github.event.release.tag_name }}.zip index.html style.css script.js default-config.json README.md
+        run: zip starlane-${{ github.event.release.tag_name }}.zip index.html style.css script.js default.conf README.md
 
       - name: Upload release asset with GitHub CLI
         env:
