@@ -16,8 +16,6 @@ WORKDIR /usr/share/nginx/html
 RUN rm -rf ./*
 COPY index.html style.css script.js ./
 
-COPY default-config.json /app/default-config.json
-
 COPY --from=builder /app/config-saver /usr/local/bin/config-saver
 
 COPY entrypoint.sh /entrypoint.sh
