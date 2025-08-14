@@ -53,10 +53,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Archive release files
         run: zip starlane-${{ github.event.release.tag_name }}.zip index.html style.css script.js default-config.json README.md
-      - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./starlane-${{ github.event.release.tag_name }}.zip
-          asset_name: starlane-${{ github.event.release.tag_name }}.zip
-          asset_content_type: application/zip
+
+      - name: Upload release asset with GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload ${{ github.event.release.tag_name }} 
+          ./starlane-${{ github.event.release.tag_name }}.zip
+          --clobber
