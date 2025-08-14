@@ -128,13 +128,11 @@ function handleScrollSpy(entries) {
 
 // --- 配置管理 ---
 async function getConfig() {
-    const storedConfig = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (storedConfig) return JSON.parse(storedConfig);
-    const response = await fetch('config.json');
-    if (!response.ok) throw new Error(`无法加载默认配置文件: ${response.statusText}`);
-    const fileConfig = await response.json();
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(fileConfig));
-    return fileConfig;
+    const response = await fetch('/data/config.json');
+    if (!response.ok) {
+        throw new Error(`无法加载配置文件 /data/config.json: ${response.statusText}`);
+    }
+    return await response.json();
 }
 
 // --- 事件监听主函数 ---
@@ -158,7 +156,11 @@ function setupEventListeners() {
     document.getElementById('app-settings-form').addEventListener('input', previewAppSettings);
     document.getElementById('bg-file-input').addEventListener('change', handleBackgroundFileUpload);
 
-    document.getElementById('save-config-btn').addEventListener('click', saveConfig);
+    const saveBtn = document.getElementById('save-config-btn');
+    saveBtn.textContent = '下载配置文件';
+    saveBtn.title = '下载修改后的配置文件，然后手动覆盖服务器上的旧文件';
+    saveBtn.addEventListener('click', exportConfig);
+
     document.getElementById('reset-config-btn').addEventListener('click', resetConfig);
     document.getElementById('export-config-btn').addEventListener('click', exportConfig);
     document.getElementById('import-config-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
@@ -333,14 +335,20 @@ function getGroupNamesFromUI() { return Array.from(document.querySelectorAll('#g
 function updateAllGroupSelects(oldName, newName) {
     document.querySelectorAll('.group-select').forEach(select => {
         const selectedValue = select.value;
-        const newGroupNames = getGroupNamesFromUI();
         if (oldName && !newName) { // Deletion
+            const newGroupNames = getGroupNamesFromUI();
             select.innerHTML = newGroupNames.map(name => `<option value="${name}">${name}</option>`).join('');
             select.value = newGroupNames.includes(selectedValue) ? selectedValue : (newGroupNames[0] || '');
         } else if (oldName && newName) { // Rename
             Array.from(select.options).forEach(opt => { if (opt.value === oldName) { opt.value = newName; opt.textContent = newName; }});
         } else { // Addition
-            select.innerHTML = newGroupNames.map(name => `<option value="${name}" ${name === selectedValue ? 'selected' : ''}>${name}</option>`).join('');
+            const newGroupNames = getGroupNamesFromUI();
+            const currentOptions = Array.from(select.options).map(o => o.value);
+            newGroupNames.forEach(name => {
+                if(!currentOptions.includes(name)) {
+                    select.add(new Option(name, name));
+                }
+             });
         }
     });
 }
@@ -378,15 +386,17 @@ function handleBackgroundFileUpload(event) {
     if (file.size > 2 * 1024 * 1024) alert('警告：图片文件过大（>2MB），可能无法永久保存在浏览器中。建议使用URL方式或压缩图片。');
     const reader = new FileReader();
     reader.onload = (e) => {
-        document.getElementById('bg-image-input').value = e.target.result;
+        const dataUrl = e.target.result;
+        document.getElementById('bg-image-input').value = dataUrl;
         previewAppSettings(event);
     };
     reader.readAsDataURL(file);
 }
 
-function saveConfig() {
+// --- 导出/导入/重置 ---
+function exportConfig() {
     const form = document.getElementById('app-settings-form');
-    const newConfig = {
+    const exportData = {
         pageTitle: form.pageTitle.value,
         theme: form.theme.value,
         backgroundType: form.backgroundType.value,
@@ -407,21 +417,19 @@ function saveConfig() {
         if (!item.name || !item.url) return;
         if (groupsMap.has(groupName)) { groupsMap.get(groupName).push(item); }
     });
-    for (const name of orderedGroupNames) { newConfig.groups.push({ name, items: groupsMap.get(name) || [] }); }
-    try {
-        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
-        alert('配置已保存！页面将刷新以应用更改。');
-        location.reload();
-    } catch (error) { handleError(new Error("保存配置失败：" + error.message)); }
-}
-function exportConfig() {
-    getConfig().then(currentConfig => {
-        const dataStr = JSON.stringify(currentConfig, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'config.json'; a.click();
-        URL.revokeObjectURL(url);
-    });
+    for (const name of orderedGroupNames) { exportData.groups.push({ name, items: groupsMap.get(name) || [] }); }
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'config.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert("配置文件已下载！请用此文件覆盖您服务器上持久化目录中的旧 'config.json'。");
 }
 function importConfig(event) {
     const file = event.target.files[0];
@@ -429,11 +437,11 @@ function importConfig(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            JSON.parse(e.target.result);
-            if (confirm('您确定要导入此配置吗？这将覆盖您现有的浏览器设置。')) {
-                localStorage.setItem(CONFIG_STORAGE_KEY, e.target.result);
-                alert('导入成功！页面将刷新。');
-                location.reload();
+            const importedConfig = JSON.parse(e.target.result);
+            if (confirm('您确定要导入此配置吗？这会覆盖当前设置面板中的内容，但需要您手动下载并替换服务器文件才能永久保存。')) {
+                populateServicesTab(importedConfig);
+                populateGroupsTab(importedConfig);
+                populateAppSettingsTab(importedConfig);
             }
         } catch (error) { alert('导入失败！文件内容不是有效的JSON格式。'); }
     };
@@ -441,13 +449,12 @@ function importConfig(event) {
     event.target.value = '';
 }
 function resetConfig() {
-    if (confirm('您确定要重置为默认配置吗？所有更改都将丢失。')) {
-        localStorage.removeItem(CONFIG_STORAGE_KEY);
-        alert('已重置为默认配置。页面将刷新。');
+    if (confirm('此操作无法撤销！它会重置您在设置面板中的所有修改。您需要手动下载并替换服务器文件来恢复到默认配置。要继续吗？')) {
         location.reload();
     }
 }
 
+// --- 其他工具函数 ---
 function guessIcon(tr) {
     const urlInput = tr.querySelector('.url-input'), nameInput = tr.querySelector('.name-input'), iconInput = tr.querySelector('.icon-url-input');
     const serviceUrl = urlInput.value, serviceName = nameInput.value.toLowerCase().trim();
@@ -465,7 +472,10 @@ function guessIcon(tr) {
     tr.querySelector('.icon-preview').src = iconUrl;
 }
 function setupSearch() {
-    document.getElementById('search-input').addEventListener('input', (e) => {
+    const searchInput = document.getElementById('search-input');
+    if(searchInput.dataset.listener) return; // 防止重复添加监听器
+    searchInput.dataset.listener = 'true';
+    searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase().trim();
         document.querySelectorAll('.group').forEach(group => {
             let visibleCardsInGroup = 0;
@@ -481,5 +491,5 @@ function setupSearch() {
 }
 function handleError(error) {
     console.error('Starlane 发生错误:', error);
-    document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: red;"><h1>发生错误</h1><p>${error.message}</p></div>`;
+    document.body.innerHTML = `<div style="text-align: center; padding: 50px; color: red;"><h1>发生错误</h1><p>${error.message}</p><p>请检查服务器上的 /data/config.json 文件是否存在且格式正确。</p></div>`;
 }
