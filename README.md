@@ -58,7 +58,7 @@ Starlane 完全由原生 `HTML`, `CSS`, `JavaScript` 构建，无任何外部JS�
     在您的主机上创建一个目录和 `config.json` 文件。
     ```bash
     mkdir -p /path/to/your/starlane/data
-    touch /path/to/your/starlane/data/config.json
+    touch /path/to/your/starlane/data/default-config.json
     ```
 
 2.  **运行 Docker 容器**
@@ -68,7 +68,7 @@ Starlane 完全由原生 `HTML`, `CSS`, `JavaScript` 构建，无任何外部JS�
     docker run -d \
       --name starlane \
       -p 8080:80 \
-      -v /path/to/your/starlane/data/config.json:/usr/share/nginx/html/config.json \
+      -v /path/to/your/starlane/data/default-config.json:/usr/share/nginx/html/default-config.json \
       --restart unless-stopped \
       ghcr.io/hellohistory/starlane:latest
     ```
@@ -90,7 +90,7 @@ Starlane 完全由原生 `HTML`, `CSS`, `JavaScript` 构建，无任何外部JS�
         ports:
           - '8080:80' # 左侧的 8080 是您访问的端口，可以按需修改
         volumes:
-          - ./data/config.json:/usr/share/nginx/html/config.json # 将配置文件挂载到容器中
+          - ./data/default-config.json:/usr/share/nginx/html/default-config.json # 将配置文件挂载到容器中
         restart: unless-stopped
     ```
 
@@ -98,7 +98,7 @@ Starlane 完全由原生 `HTML`, `CSS`, `JavaScript` 构建，无任何外部JS�
     在与 `docker-compose.yml` **相同的目录**下，创建一个 `data` 文件夹，并在其中创建一个空的 `config.json` 文件。
     ```bash
     mkdir data
-    touch data/config.json
+    touch data/default-config.json
     ```
 
 3.  **启动服务**
