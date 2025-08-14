@@ -13,7 +13,6 @@ on:
   workflow_dispatch:
 
 jobs:
-jobs:
   build-and-push-docker:
     runs-on: ubuntu-latest
     steps:
