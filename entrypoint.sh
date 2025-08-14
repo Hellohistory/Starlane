@@ -13,4 +13,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
   cp "$DEFAULT_CONFIG" "$CONFIG_FILE"
 fi
 
+echo "Starting config saver in the background..."
+/usr/local/bin/config-saver &
+
+echo "Starting Nginx in the foreground..."
 exec "$@"

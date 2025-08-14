@@ -4,30 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
+    <link rel="preload" href="/data/config.json" as="fetch" crossorigin>
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
 <body>
+
+    <div class="background-aurora"></div>
+    <div id="sidebar-overlay"></div>
 
     <nav id="sidebar">
         <div class="sidebar-header">
             <h2 id="sidebar-title">Starlane</h2>
         </div>
         <ul id="sidebar-group-list">
-            </ul>
+        </ul>
     </nav>
 
     <div id="main-content-wrapper">
-        <button id="menu-toggle-btn" class="menu-toggle-btn">☰</button>
+        <button id="menu-toggle-btn" class="menu-toggle-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
 
-        <header>
-            <h1 id="page-title"></h1>
-            <div class="search-wrapper">
-                <label for="search-input"></label><input type="search" id="search-input" placeholder="搜索服务...">
-            </div>
-        </header>
-        <main id="starlane-container">
+        <div class="main-content-inner">
+            <header>
+                <h1 id="page-title"></h1>
+                <div class="search-wrapper">
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <label for="search-input"></label><input type="search" id="search-input" placeholder="搜索服务...">
+                </div>
+            </header>
+            <main id="starlane-container">
+                <section class="group skeleton-group">
+                    <h2 class="group-title skeleton-title"></h2>
+                    <div class="items-container">
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                    </div>
+                </section>
+                 <section class="group skeleton-group">
+                    <h2 class="group-title skeleton-title"></h2>
+                    <div class="items-container">
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                        <div class="link-card skeleton-card"></div>
+                    </div>
+                </section>
             </main>
+        </div>
     </div>
 
     <div id="settings-modal" class="modal-overlay hidden">
@@ -54,7 +83,7 @@
                             </tr>
                         </thead>
                         <tbody id="config-table-body">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
                 <button id="add-row-btn" class="action-btn">✚ 添加一个服务</button>
@@ -64,7 +93,7 @@
                 <p class="modal-desc">在这里添加、删除、重命名和拖拽排序分类。</p>
                 <div id="group-manager">
                     <ul id="group-list" class="sortable-list">
-                        </ul>
+                    </ul>
                     <div class="add-group-wrapper">
                         <label for="new-group-name"></label><input type="text" id="new-group-name" placeholder="输入新分类名...">
                         <button id="add-group-btn" class="action-btn">✚ 添加分类</button>
@@ -122,7 +151,9 @@
         </div>
     </div>
 
-    <button id="settings-btn" class="settings-btn" title="设置">⚙️</button>
+    <button id="settings-btn" class="settings-btn" title="设置">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
 
 </body>
 </html>
