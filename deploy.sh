@@ -15,6 +15,9 @@ CONFIG_FILE="$DATA_DIR/config.json"
 info() {
     printf "${YELLOW}[INFO] %s${NC}\n" "$1"
 }
+warn() {
+    printf "${YELLOW}[WARN] %s${NC}\n" "$1" >&2
+}
 success() {
     printf "${GREEN}[SUCCESS] %s${NC}\n" "$1"
 }
@@ -103,10 +106,19 @@ EOF
 fi
 
 if [ -n "$SITE_TITLE" ]; then
-    info "正在将站点名称更新为: '$SITE_TITLE'..."
-    sed -i.bak "s/\"pageTitle\": \".*\"/\"pageTitle\": \"$SITE_TITLE\"/" "$CONFIG_FILE"
-    rm -f "$CONFIG_FILE.bak"
-    success "站点名称已更新。"
+    if command -v jq >/dev/null 2>&1; then
+        info "正在将站点名称更新为: '$SITE_TITLE'..."
+        tmp_file=$(mktemp "${CONFIG_FILE}.XXXX") || error "无法创建临时文件，请检查系统权限。"
+        if jq --arg title "$SITE_TITLE" '.pageTitle = $title' "$CONFIG_FILE" >"$tmp_file"; then
+            mv "$tmp_file" "$CONFIG_FILE"
+            success "站点名称已更新。"
+        else
+            rm -f "$tmp_file"
+            warn "使用 jq 更新站点名称失败，请检查配置文件格式或手动修改: $CONFIG_FILE"
+        fi
+    else
+        warn "未检测到 jq，无法自动更新站点名称。请安装 jq 后重试或手动编辑: $CONFIG_FILE"
+    fi
 fi
 echo ""
 
@@ -141,7 +153,8 @@ echo ""
 success "🎉 恭喜！Starlane 部署/更新成功！ 🎉"
 echo ""
 info "您现在可以通过以下地址访问您的专属导航页："
-info "URL: http://localhost:${HOST_PORT}"
+info "本地测试地址: http://localhost:${HOST_PORT}"
+warn "强烈建议在生产环境通过反向代理或 CDN 配置 HTTPS，以保护 X-Save-Token 等敏感信息。"
 echo ""
 info "您的所有配置和数据都保存在本机路径："
 info "Path: ${DATA_DIR}"
