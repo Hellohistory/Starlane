@@ -6,7 +6,45 @@ import { applyAppSettings, handleError } from './ui.js';
 let settingsInitialized = false;
 let draggingElement = null;
 
+const SAVE_TOKEN_STORAGE_KEY = 'starlane_save_token';
+
 const settingsModal = document.getElementById('settings-modal');
+
+function getPersistedToken() {
+    try {
+        return localStorage.getItem(SAVE_TOKEN_STORAGE_KEY);
+    } catch (error) {
+        console.warn('无法访问 localStorage，将尝试回退到 sessionStorage。', error);
+        try {
+            return sessionStorage.getItem(SAVE_TOKEN_STORAGE_KEY);
+        } catch (fallbackError) {
+            console.warn('无法访问 sessionStorage。', fallbackError);
+            return null;
+        }
+    }
+}
+
+function setPersistedToken(value) {
+    try {
+        if (value === null) {
+            localStorage.removeItem(SAVE_TOKEN_STORAGE_KEY);
+        } else {
+            localStorage.setItem(SAVE_TOKEN_STORAGE_KEY, value);
+        }
+        return;
+    } catch (error) {
+        console.warn('无法写入 localStorage，将尝试回退到 sessionStorage。', error);
+    }
+    try {
+        if (value === null) {
+            sessionStorage.removeItem(SAVE_TOKEN_STORAGE_KEY);
+        } else {
+            sessionStorage.setItem(SAVE_TOKEN_STORAGE_KEY, value);
+        }
+    } catch (fallbackError) {
+        console.warn('无法写入 sessionStorage。', fallbackError);
+    }
+}
 
 export function initializeSettingsPanel() {
     if (settingsInitialized) {
@@ -374,11 +412,11 @@ async function saveConfig() {
     }
 
     try {
-        let token = sessionStorage.getItem('starlane_save_token');
+        let token = getPersistedToken();
         if (token === null) {
             token = prompt('请输入您的保存密钥 (如果您在部署时设置了):', '');
             if (token !== null) {
-                sessionStorage.setItem('starlane_save_token', token);
+                setPersistedToken(token);
             }
         }
 
@@ -388,7 +426,7 @@ async function saveConfig() {
             location.reload();
         } else if (response.status === 401) {
             alert('保存失败：密钥错误！请刷新页面后重试。');
-            sessionStorage.removeItem('starlane_save_token');
+            setPersistedToken(null);
         } else {
             const errorText = await response.text();
             alert(`保存失败：${errorText}`);
