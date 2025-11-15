@@ -13,9 +13,8 @@ func main() {
 	configFile := "/usr/share/nginx/html/data/config.json"
 
 	http.HandleFunc("/api/save", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Save-Token")
+               w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+               w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Save-Token")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -27,12 +26,16 @@ func main() {
 			return
 		}
 
-		if saveToken != "" {
-			tokenFromHeader := r.Header.Get("X-Save-Token")
-			if tokenFromHeader != saveToken {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
-				return
-			}
+		if saveToken == "" {
+			log.Println("CRITICAL: SAVE_TOKEN is not configured. Refusing to save.")
+			http.Error(w, "Server is not configured for saving", http.StatusInternalServerError)
+			return
+		}
+
+		tokenFromHeader := r.Header.Get("X-Save-Token")
+		if tokenFromHeader != saveToken {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
