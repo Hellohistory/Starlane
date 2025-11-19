@@ -1,102 +1,52 @@
-// 文件路径: js/settings.js
-
 import { getConfig, saveConfigData } from './api.js';
-import { applyAppSettings, handleError } from './ui.js';
+import { handleError } from './ui.js';
 
 let settingsInitialized = false;
-let draggingElement = null;
+let currentConfig = null; // 内存中保存一份
+let editingItemElement = null; // 当前正在编辑的 DOM 元素
 
 const SAVE_TOKEN_STORAGE_KEY = 'starlane_save_token';
-
 const settingsModal = document.getElementById('settings-modal');
+const editorDialog = document.getElementById('item-editor-dialog');
 
-function getPersistedToken() {
-    try {
-        return localStorage.getItem(SAVE_TOKEN_STORAGE_KEY);
-    } catch (error) {
-        console.warn('无法访问 localStorage，将尝试回退到 sessionStorage。', error);
-        try {
-            return sessionStorage.getItem(SAVE_TOKEN_STORAGE_KEY);
-        } catch (fallbackError) {
-            console.warn('无法访问 sessionStorage。', fallbackError);
-            return null;
-        }
-    }
-}
-
-function setPersistedToken(value) {
-    try {
-        if (value === null) {
-            localStorage.removeItem(SAVE_TOKEN_STORAGE_KEY);
-        } else {
-            localStorage.setItem(SAVE_TOKEN_STORAGE_KEY, value);
-        }
-        return;
-    } catch (error) {
-        console.warn('无法写入 localStorage，将尝试回退到 sessionStorage。', error);
-    }
-    try {
-        if (value === null) {
-            sessionStorage.removeItem(SAVE_TOKEN_STORAGE_KEY);
-        } else {
-            sessionStorage.setItem(SAVE_TOKEN_STORAGE_KEY, value);
-        }
-    } catch (fallbackError) {
-        console.warn('无法写入 sessionStorage。', fallbackError);
-    }
-}
-
+// --- 初始化 ---
 export function initializeSettingsPanel() {
-    if (settingsInitialized) {
-        return;
-    }
+    if (settingsInitialized) return;
     settingsInitialized = true;
 
     document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
     document.getElementById('close-modal-btn').addEventListener('click', closeSettingsModal);
-    settingsModal.addEventListener('click', (event) => {
-        if (event.target.id === 'settings-modal') {
-            closeSettingsModal();
-        }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
+            e.target.classList.add('active');
+            document.getElementById(e.target.dataset.tab + '-tab').classList.add('active');
+        });
     });
 
-    document.querySelectorAll('.tab-btn').forEach((button) => button.addEventListener('click', switchTab));
-    document.getElementById('add-row-btn').addEventListener('click', () => addTableRow({
-        group: getGroupNamesFromUI()[0] || '默认分类'
-    }, getGroupNamesFromUI()));
-    document.getElementById('add-group-btn').addEventListener('click', addGroup);
-
-    const groupListContainer = document.getElementById('group-list');
-    groupListContainer.addEventListener('dragstart', handleDragStart);
-    groupListContainer.addEventListener('dragover', handleDragOver);
-    groupListContainer.addEventListener('dragleave', handleDragLeave);
-    groupListContainer.addEventListener('drop', handleDrop);
-    groupListContainer.addEventListener('dragend', handleDragEnd);
-
-    document.getElementById('app-settings-form').addEventListener('input', previewAppSettings);
-    document.getElementById('bg-file-input').addEventListener('change', handleBackgroundFileUpload);
-
+    document.getElementById('add-group-btn').addEventListener('click', addNewGroup);
     document.getElementById('save-config-btn').addEventListener('click', saveConfig);
-    document.getElementById('reset-config-btn').addEventListener('click', resetConfig);
-    document.getElementById('export-config-btn').addEventListener('click', exportConfig);
-    document.getElementById('import-config-btn').addEventListener('click', () => {
-        document.getElementById('import-file-input').click();
+    document.getElementById('reset-config-btn').addEventListener('click', () => {
+        if(confirm('确定重置所有未保存的修改吗？')) openSettingsModal();
     });
-    document.getElementById('import-file-input').addEventListener('change', importConfig);
 
-    toggleBackgroundInputs();
+    document.getElementById('bg-file-input').addEventListener('change', handleBgUpload);
+
+    setupDialogEvents();
+
+    document.getElementById('export-config-btn').addEventListener('click', exportConfig);
+    document.getElementById('import-config-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
+    document.getElementById('import-file-input').addEventListener('change', importConfig);
 }
 
 async function openSettingsModal() {
     try {
-        const config = await getConfig();
-        populateServicesTab(config);
-        populateGroupsTab(config);
-        populateAppSettingsTab(config);
+        currentConfig = await getConfig();
+        renderEditorBoard(currentConfig);
+        populateAppSettings(currentConfig);
         settingsModal.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            settingsModal.classList.add('visible');
-        });
+        setTimeout(() => settingsModal.classList.add('visible'), 10);
     } catch (error) {
         handleError(error);
     }
@@ -104,435 +54,307 @@ async function openSettingsModal() {
 
 function closeSettingsModal() {
     settingsModal.classList.remove('visible');
-    settingsModal.addEventListener('transitionend', () => {
-        settingsModal.classList.add('hidden');
-    }, { once: true });
+    setTimeout(() => settingsModal.classList.add('hidden'), 300);
 }
 
-function switchTab(event) {
-    const tabId = event.target.dataset.tab;
-    document.querySelectorAll('.tab-btn, .tab-content').forEach((element) => element.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById(`${tabId}-tab`).classList.add('active');
-}
+// --- 渲染编辑器核心逻辑 ---
 
-function populateServicesTab(config) {
-    const tableBody = document.getElementById('config-table-body');
-    tableBody.innerHTML = '';
-    const groupNames = Array.isArray(config.groups) ? config.groups.map((group) => group.name) : [];
-    (config.groups || []).forEach((group) => {
-        (group.items || []).forEach((item) => addTableRow({ ...item, group: group.name }, groupNames));
+function renderEditorBoard(config) {
+    const board = document.getElementById('editor-board');
+    board.innerHTML = ''; // 清空
+
+    if (!config.groups) config.groups = [];
+
+    config.groups.forEach(group => {
+        const groupEl = createGroupElement(group.name, group.items || []);
+        board.appendChild(groupEl);
     });
+
+    initSortable();
 }
 
-function addTableRow(item, groupNames) {
-    const tbody = document.getElementById('config-table-body');
-    const tr = tbody.insertRow();
-    tr.innerHTML = `
-        <td data-label="服务名称"><input type="text" class="name-input" value="${item.name || ''}" placeholder="如：Jellyfin"></td>
-        <td data-label="网址 (URL)"><input type="url" class="url-input" value="${item.url || ''}" placeholder="https://..."></td>
-        <td data-label="图标地址"><div class="icon-input-wrapper">
-            <input type="text" class="icon-url-input" value="${item.icon || ''}" placeholder="https://...">
-            <button class="guess-icon-btn" title="智能识别图标">💡</button>
-        </div></td>
-        <td data-label="预览"><img class="icon-preview" src="${item.icon || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}" onerror="this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';"></td>
-        <td data-label="所属分类"><select class="group-select">${groupNames.map((name) => `<option value="${name}" ${name === item.group ? 'selected' : ''}>${name}</option>`).join('')}</select></td>
-        <td data-label="操作"><button class="delete-row-btn" title="删除此行">🗑️</button></td>
-    `;
-    const iconUrlInput = tr.querySelector('.icon-url-input');
-    iconUrlInput.addEventListener('input', () => {
-        tr.querySelector('.icon-preview').src = iconUrlInput.value;
-    });
-    tr.querySelector('.guess-icon-btn').addEventListener('click', (event) => {
-        event.preventDefault();
-        guessIcon(event.target.closest('tr'));
-    });
-    tr.querySelector('.delete-row-btn').addEventListener('click', () => tr.remove());
-}
-
-function populateGroupsTab(config) {
-    const groupList = document.getElementById('group-list');
-    groupList.innerHTML = '';
-    (config.groups || []).forEach((group) => createGroupListItem(group.name));
-}
-
-function createGroupListItem(name) {
-    const li = document.createElement('li');
-    li.dataset.groupName = name;
-    li.draggable = true;
-    li.innerHTML = `
-        <span class="drag-handle">☰</span>
-        <span class="group-name-span">${name}</span>
-        <div class="group-actions">
-            <button class="rename-group-btn" title="重命名">✏️</button>
-            <button class="delete-group-btn" title="删除">🗑️</button>
+function createGroupElement(name, items) {
+    const div = document.createElement('div');
+    div.className = 'editor-group';
+    div.innerHTML = `
+        <div class="editor-group-header">
+            <span class="drag-handle-group">☰</span>
+            <input type="text" class="group-name-input" value="${name}">
+            <div class="group-controls">
+                <button class="delete-group-btn" title="删除分类">✕</button>
+            </div>
         </div>
+        <div class="editor-items-list"></div>
     `;
-    document.getElementById('group-list').appendChild(li);
-    li.querySelector('.rename-group-btn').addEventListener('click', (event) => renameGroup(event.target.closest('li')));
-    li.querySelector('.delete-group-btn').addEventListener('click', (event) => deleteGroup(event.target.closest('li')));
-}
 
-function handleDragStart(event) {
-    if (event.target.matches('li[draggable="true"]')) {
-        draggingElement = event.target;
-        event.dataTransfer.effectAllowed = 'move';
-        setTimeout(() => draggingElement.classList.add('dragging'), 0);
-    }
-}
-
-function handleDragOver(event) {
-    event.preventDefault();
-    const container = event.currentTarget;
-    const afterElement = getDragAfterElement(container, event.clientY);
-    if (afterElement == null) {
-        if (container.lastElementChild && container.lastElementChild !== draggingElement) {
-            container.lastElementChild.classList.add('drag-over-bottom');
+    // 绑定删除分类事件
+    div.querySelector('.delete-group-btn').addEventListener('click', () => {
+        if (confirm(`确定删除分类 "${div.querySelector('.group-name-input').value}" 吗？里面的卡片也会被删除。`)) {
+            div.remove();
         }
+    });
+
+    const listEl = div.querySelector('.editor-items-list');
+    
+    // 渲染卡片
+    items.forEach(item => {
+        listEl.appendChild(createCardElement(item));
+    });
+
+    // 添加“新增卡片”按钮
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-item-btn';
+    addBtn.textContent = '+ 添加服务';
+    addBtn.addEventListener('click', () => openEditDialog(null, addBtn));
+    listEl.appendChild(addBtn);
+
+    return div;
+}
+
+function createCardElement(item) {
+    const div = document.createElement('div');
+    div.className = 'editor-card';
+    div.dataset.name = item.name;
+    div.dataset.url = item.url;
+    div.dataset.icon = item.icon;
+    
+    div.innerHTML = `
+        <img src="${item.icon || ''}" onerror="this.style.display='none'">
+        <span>${item.name}</span>
+        <div class="edit-hint">编辑</div>
+    `;
+    
+    // 点击卡片打开编辑
+    div.addEventListener('click', () => openEditDialog(div));
+    return div;
+}
+
+function addNewGroup() {
+    const board = document.getElementById('editor-board');
+    const newGroup = createGroupElement('新分类', []);
+    board.appendChild(newGroup);
+    initSortable(); // 重新绑定拖拽
+    newGroup.scrollIntoView({ behavior: 'smooth' });
+    newGroup.querySelector('input').focus();
+}
+
+// --- SortableJS 初始化 ---
+
+function initSortable() {
+    const board = document.getElementById('editor-board');
+
+    Sortable.create(board, {
+        handle: '.drag-handle-group',
+        animation: 150,
+        ghostClass: 'sortable-ghost'
+    });
+
+    document.querySelectorAll('.editor-items-list').forEach(list => {
+        Sortable.create(list, {
+            group: 'shared-items', // 允许跨列表
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            draggable: '.editor-card' // 不允许拖拽“添加按钮”
+        });
+    });
+}
+
+// --- Dialog 编辑逻辑 ---
+
+function setupDialogEvents() {
+    const form = document.getElementById('item-editor-form');
+    
+    // 图标预览
+    document.getElementById('edit-icon').addEventListener('input', (e) => {
+        document.getElementById('edit-preview-img').src = e.target.value;
+    });
+
+    // 自动猜测图标
+    document.getElementById('guess-icon-btn').addEventListener('click', () => {
+        const url = document.getElementById('edit-url').value;
+        if (!url) return;
+        try {
+            const domain = new URL(url).hostname;
+            const iconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${domain}`;
+            document.getElementById('edit-icon').value = iconUrl;
+            document.getElementById('edit-preview-img').src = iconUrl;
+        } catch(e) {}
+    });
+
+    // 关闭/取消
+    document.getElementById('cancel-edit-btn').addEventListener('click', () => editorDialog.close());
+
+    // 删除项目
+    document.getElementById('delete-item-btn').addEventListener('click', () => {
+        if (editingItemElement) {
+            editingItemElement.remove();
+        }
+        editorDialog.close();
+    });
+
+    // 确认保存
+    document.getElementById('confirm-edit-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const data = {
+            name: document.getElementById('edit-name').value,
+            url: document.getElementById('edit-url').value,
+            icon: document.getElementById('edit-icon').value
+        };
+
+        if (editingItemElement) {
+            // 修改现有卡片
+            updateCardElement(editingItemElement, data);
+        } else {
+            // 新增卡片 (targetList 在 openEditDialog 中暂存)
+            const targetList = window.targetAddList; 
+            const newCard = createCardElement(data);
+            targetList.insertBefore(newCard, targetList.lastElementChild); // 插在按钮前面
+        }
+        editorDialog.close();
+    });
+}
+
+function openEditDialog(cardElement, addButtonElement = null) {
+    editingItemElement = cardElement;
+    
+    if (cardElement) {
+        // 编辑模式
+        document.getElementById('edit-name').value = cardElement.dataset.name;
+        document.getElementById('edit-url').value = cardElement.dataset.url;
+        document.getElementById('edit-icon').value = cardElement.dataset.icon;
+        document.getElementById('edit-preview-img').src = cardElement.dataset.icon;
+        document.getElementById('delete-item-btn').classList.remove('hidden');
     } else {
-        afterElement.classList.add('drag-over-top');
+        // 新增模式
+        document.getElementById('item-editor-form').reset();
+        document.getElementById('edit-preview-img').src = '';
+        document.getElementById('delete-item-btn').classList.add('hidden');
+        window.targetAddList = addButtonElement.parentElement; // 记住要加到哪个列表
     }
+    
+    editorDialog.showModal();
 }
 
-function handleDragLeave(event) {
-    const listItem = event.target.closest('li');
-    if (listItem) {
-        listItem.classList.remove('drag-over-top', 'drag-over-bottom');
-    }
+function updateCardElement(el, data) {
+    el.dataset.name = data.name;
+    el.dataset.url = data.url;
+    el.dataset.icon = data.icon;
+    el.querySelector('img').src = data.icon;
+    el.querySelector('img').style.display = data.icon ? 'block' : 'none';
+    el.querySelector('span').textContent = data.name;
 }
 
-function handleDrop(event) {
-    event.preventDefault();
-    const container = event.currentTarget;
-    const afterElement = getDragAfterElement(container, event.clientY);
-    if (draggingElement) {
-        if (afterElement == null) {
-            container.appendChild(draggingElement);
-        } else {
-            container.insertBefore(draggingElement, afterElement);
-        }
-    }
-}
+// --- 保存与数据处理 ---
 
-function handleDragEnd() {
-    if (draggingElement) {
-        draggingElement.classList.remove('dragging');
-    }
-    document.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach((element) => {
-        element.classList.remove('drag-over-top', 'drag-over-bottom');
-    });
-    draggingElement = null;
-}
+async function saveConfig() {
+    const btn = document.getElementById('save-config-btn');
+    btn.textContent = '保存中...';
+    btn.disabled = true;
 
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-            return { offset, element: child };
-        }
-        return closest;
-    }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
-}
-
-function addGroup() {
-    const input = document.getElementById('new-group-name');
-    const name = input.value.trim();
-    if (!name || getGroupNamesFromUI().includes(name)) {
-        alert('分类名不能为空或重复！');
-        return;
-    }
-    createGroupListItem(name);
-    updateAllGroupSelects();
-    input.value = '';
-}
-
-function deleteGroup(listItem) {
-    const name = listItem.dataset.groupName;
-    if (!confirm(`您确定要删除 "${name}" 分类吗？其中的服务项将被移动到第一个分类中。`)) {
-        return;
-    }
-    listItem.remove();
-    updateAllGroupSelects(name);
-}
-
-function renameGroup(listItem) {
-    const span = listItem.querySelector('.group-name-span');
-    const oldName = span.textContent;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'group-name-input';
-    input.value = oldName;
-    span.replaceWith(input);
-    input.focus();
-
-    const finish = () => {
-        const newName = input.value.trim();
-        const newSpan = document.createElement('span');
-        newSpan.className = 'group-name-span';
-        const existingNames = getGroupNamesFromUI().filter((name) => name !== oldName);
-        if (newName && newName !== oldName && !existingNames.includes(newName)) {
-            newSpan.textContent = newName;
-            input.closest('li').dataset.groupName = newName;
-            updateAllGroupSelects(oldName, newName);
-        } else {
-            newSpan.textContent = oldName;
-            if (newName !== oldName) {
-                alert('分类名不能为空或重复！');
-            }
-        }
-        input.replaceWith(newSpan);
-    };
-
-    input.addEventListener('blur', finish);
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            input.blur();
-        }
-    });
-}
-
-function getGroupNamesFromUI() {
-    return Array.from(document.querySelectorAll('#group-list li')).map((li) => li.dataset.groupName);
-}
-
-function updateAllGroupSelects(oldName, newName) {
-    document.querySelectorAll('.group-select').forEach((select) => {
-        const selectedValue = select.value;
-        if (oldName && !newName) {
-            const newGroupNames = getGroupNamesFromUI();
-            select.innerHTML = newGroupNames.map((name) => `<option value="${name}">${name}</option>`).join('');
-            select.value = newGroupNames.includes(selectedValue) ? selectedValue : (newGroupNames[0] || '');
-        } else if (oldName && newName) {
-            Array.from(select.options).forEach((option) => {
-                if (option.value === oldName) {
-                    option.value = newName;
-                    option.textContent = newName;
-                }
-            });
-        } else {
-            const newGroupNames = getGroupNamesFromUI();
-            const currentOptions = Array.from(select.options).map((option) => option.value);
-            newGroupNames.forEach((name) => {
-                if (!currentOptions.includes(name)) {
-                    select.add(new Option(name, name));
-                }
-            });
-        }
-    });
-}
-
-function populateAppSettingsTab(config) {
-    document.getElementById('page-title-input').value = config.pageTitle || '';
-    document.getElementById('theme-select').value = config.theme || 'auto';
-    let backgroundType = config.backgroundType;
-    if (backgroundType !== 'color' && backgroundType !== 'image') {
-        backgroundType = 'color';
-    }
-    const typeInput = document.querySelector(`input[name="backgroundType"][value="${backgroundType}"]`);
-    if (typeInput) {
-        typeInput.checked = true;
-    }
-    document.getElementById('bg-color-input').value = config.backgroundColor || '#f0f2f5';
-    document.getElementById('bg-image-input').value = config.backgroundImage || '';
-    toggleBackgroundInputs();
-}
-
-function previewAppSettings(event) {
-    if (event && event.target.name === 'backgroundType') {
-        toggleBackgroundInputs();
-    }
     const form = document.getElementById('app-settings-form');
-    const tempConfig = {
+    const config = {
         pageTitle: form.pageTitle.value,
         theme: form.theme.value,
         backgroundType: form.backgroundType.value,
         backgroundColor: form.backgroundColor.value,
-        backgroundImage: document.getElementById('bg-image-input').value
+        backgroundImage: document.getElementById('bg-image-input').value,
+        groups: []
     };
-    applyAppSettings(tempConfig);
+
+    document.querySelectorAll('.editor-group').forEach(groupEl => {
+        const groupName = groupEl.querySelector('.group-name-input').value;
+        const items = [];
+        groupEl.querySelectorAll('.editor-card').forEach(card => {
+            items.push({
+                name: card.dataset.name,
+                url: card.dataset.url,
+                icon: card.dataset.icon
+            });
+        });
+        config.groups.push({ name: groupName, items: items });
+    });
+
+    try {
+        let token = localStorage.getItem(SAVE_TOKEN_STORAGE_KEY);
+        if (!token) {
+            token = prompt('请输入保存密钥 (SAVE_TOKEN):');
+            if (token) localStorage.setItem(SAVE_TOKEN_STORAGE_KEY, token);
+        }
+
+        const res = await saveConfigData(config, token);
+        if (res.ok) {
+            location.reload();
+        } else {
+            const msg = await res.text();
+            alert('保存失败: ' + msg);
+            if (res.status === 401) localStorage.removeItem(SAVE_TOKEN_STORAGE_KEY);
+        }
+    } catch (e) {
+        alert('网络错误: ' + e.message);
+    } finally {
+        btn.textContent = '保存并刷新';
+        btn.disabled = false;
+    }
 }
 
-function toggleBackgroundInputs() {
-    const useImage = document.getElementById('bg-type-image').checked;
-    document.getElementById('bg-color-wrapper').classList.toggle('hidden', useImage);
-    document.getElementById('bg-image-wrapper').classList.toggle('hidden', !useImage);
+function populateAppSettings(config) {
+    document.getElementById('page-title-input').value = config.pageTitle || '';
+    document.getElementById('theme-select').value = config.theme || 'auto';
+    
+    const bgType = config.backgroundType === 'image' ? 'image' : 'color';
+    document.querySelector(`input[name="backgroundType"][value="${bgType}"]`).checked = true;
+    
+    document.getElementById('bg-color-input').value = config.backgroundColor || '#f0f2f5';
+    document.getElementById('bg-image-input').value = config.backgroundImage || '';
+    
+    toggleBgInputs();
+    document.querySelectorAll('input[name="backgroundType"]').forEach(r => 
+        r.addEventListener('change', toggleBgInputs)
+    );
 }
 
-function handleBackgroundFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) {
-        return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-        alert('警告：图片文件过大（>2MB），可能无法永久保存在浏览器中。建议使用URL方式或压缩图片。');
-    }
+function toggleBgInputs() {
+    const isImg = document.getElementById('bg-type-image').checked;
+    document.getElementById('bg-color-wrapper').classList.toggle('hidden', isImg);
+    document.getElementById('bg-image-wrapper').classList.toggle('hidden', !isImg);
+}
+
+function handleBgUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
     const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-        const dataUrl = loadEvent.target.result;
-        document.getElementById('bg-image-input').value = dataUrl;
-        previewAppSettings(null);
-    };
+    reader.onload = (ev) => document.getElementById('bg-image-input').value = ev.target.result;
     reader.readAsDataURL(file);
 }
 
-async function saveConfig() {
-    const saveButton = document.getElementById('save-config-btn');
-    saveButton.textContent = '正在保存...';
-    saveButton.disabled = true;
-
-    const form = document.getElementById('app-settings-form');
-    const bgImageInput = document.getElementById('bg-image-input');
-    const saveData = {
-        pageTitle: form.pageTitle.value,
-        theme: form.theme.value,
-        backgroundType: form.backgroundType.value,
-        backgroundColor: form.backgroundColor.value,
-        backgroundImage: bgImageInput.value,
-        groups: []
-    };
-
-    const groupsMap = new Map();
-    const orderedGroupNames = getGroupNamesFromUI();
-    orderedGroupNames.forEach((name) => groupsMap.set(name, []));
-    document.querySelectorAll('#config-table-body tr').forEach((tr) => {
-        const item = {
-            name: tr.querySelector('.name-input').value,
-            url: tr.querySelector('.url-input').value,
-            icon: tr.querySelector('.icon-url-input').value
-        };
-        const groupName = tr.querySelector('.group-select').value;
-        if (item.name && item.url && groupsMap.has(groupName)) {
-            groupsMap.get(groupName).push(item);
-        }
-    });
-    for (const name of orderedGroupNames) {
-        saveData.groups.push({ name, items: groupsMap.get(name) || [] });
-    }
-
-    try {
-        let token = getPersistedToken();
-        if (token === null) {
-            token = prompt('请输入您的保存密钥 (如果您在部署时设置了):', '');
-            if (token !== null) {
-                setPersistedToken(token);
-            }
-        }
-
-        const response = await saveConfigData(saveData, token);
-        if (response.ok) {
-            alert('保存成功！页面即将刷新以应用更改。');
-            location.reload();
-        } else if (response.status === 401) {
-            alert('保存失败：密钥错误！请刷新页面后重试。');
-            setPersistedToken(null);
-        } else {
-            const errorText = await response.text();
-            alert(`保存失败：${errorText}`);
-        }
-    } catch (error) {
-        alert(`保存时发生网络错误: ${error.message}`);
-    } finally {
-        saveButton.textContent = '保存并刷新';
-        saveButton.disabled = false;
-    }
-}
-
 function exportConfig() {
-    const form = document.getElementById('app-settings-form');
-    const bgImageInput = document.getElementById('bg-image-input');
-    const exportData = {
-        pageTitle: form.pageTitle.value,
-        theme: form.theme.value,
-        backgroundType: form.backgroundType.value,
-        backgroundColor: form.backgroundColor.value,
-        backgroundImage: bgImageInput.value,
-        groups: []
-    };
-
-    const groupsMap = new Map();
-    const orderedGroupNames = getGroupNamesFromUI();
-    orderedGroupNames.forEach((name) => groupsMap.set(name, []));
-    document.querySelectorAll('#config-table-body tr').forEach((tr) => {
-        const item = {
-            name: tr.querySelector('.name-input').value,
-            url: tr.querySelector('.url-input').value,
-            icon: tr.querySelector('.icon-url-input').value
-        };
-        const groupName = tr.querySelector('.group-select').value;
-        if (item.name && item.url && groupsMap.has(groupName)) {
-            groupsMap.get(groupName).push(item);
-        }
-    });
-    for (const name of orderedGroupNames) {
-        exportData.groups.push({ name, items: groupsMap.get(name) || [] });
-    }
-
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const dataStr = JSON.stringify(currentConfig, null, 2);
+    const blob = new Blob([dataStr], {type: "application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'config.json';
-    document.body.appendChild(a);
+    a.download = "starlane-config.json";
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
-function importConfig(event) {
-    const file = event.target.files[0];
-    if (!file) {
-        return;
-    }
+function importConfig(e) {
+    const file = e.target.files[0];
+    if (!file) return;
     const reader = new FileReader();
-    reader.onload = (loadEvent) => {
+    reader.onload = (ev) => {
         try {
-            const importedConfig = JSON.parse(loadEvent.target.result);
-            if (confirm('导入配置将覆盖当前设置面板中的所有内容（需要手动保存才能生效），要继续吗？')) {
-                populateServicesTab(importedConfig);
-                populateGroupsTab(importedConfig);
-                populateAppSettingsTab(importedConfig);
-            }
-        } catch (error) {
-            alert('导入失败！文件内容不是有效的JSON格式。');
+            const json = JSON.parse(ev.target.result);
+            renderEditorBoard(json);
+            populateAppSettings(json);
+            alert('配置已加载到编辑器，请检查无误后点击“保存”生效。');
+        } catch (err) {
+            alert('JSON 格式错误');
         }
     };
     reader.readAsText(file);
-    event.target.value = '';
-}
-
-function resetConfig() {
-    if (confirm('此操作会重置您在设置面板中的所有修改，回到上次保存的状态。要继续吗？')) {
-        closeSettingsModal();
-        openSettingsModal();
-    }
-}
-
-function guessIcon(tableRow) {
-    const urlInput = tableRow.querySelector('.url-input');
-    const nameInput = tableRow.querySelector('.name-input');
-    const iconInput = tableRow.querySelector('.icon-url-input');
-    const serviceUrl = urlInput.value;
-    const serviceName = nameInput.value.toLowerCase().trim();
-    if (!serviceUrl && !serviceName) {
-        alert('请先填写服务名称或网址。');
-        return;
-    }
-    let iconUrl = '';
-    if (serviceUrl) {
-        try {
-            const domain = new URL(serviceUrl).hostname;
-            iconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${domain}`;
-        } catch (error) {
-            if (serviceName) {
-                iconUrl = `https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/${serviceName.replace(/\s+/g, '')}.png`;
-            }
-        }
-    } else if (serviceName) {
-        iconUrl = `https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/${serviceName.replace(/\s+/g, '')}.png`;
-    }
-    iconInput.value = iconUrl;
-    tableRow.querySelector('.icon-preview').src = iconUrl;
 }
