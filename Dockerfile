@@ -20,6 +20,7 @@ WORKDIR /usr/share/nginx/html
 RUN rm -rf ./*
 COPY index.html style.css ./
 COPY js ./js
+COPY static ./svg
 
 COPY --from=builder /app/config-saver /usr/local/bin/config-saver
 
