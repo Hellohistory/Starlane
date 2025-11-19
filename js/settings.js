@@ -1,5 +1,5 @@
 import { getConfig, saveConfigData } from './api.js';
-import { handleError } from './ui.js';
+import { applyAppSettings, handleError } from './ui.js';
 
 let settingsInitialized = false;
 let currentConfig = null; // 内存中保存一份
@@ -14,9 +14,11 @@ export function initializeSettingsPanel() {
     if (settingsInitialized) return;
     settingsInitialized = true;
 
+    // 模态框开关
     document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
     document.getElementById('close-modal-btn').addEventListener('click', closeSettingsModal);
 
+    // Tab 切换
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
@@ -25,16 +27,20 @@ export function initializeSettingsPanel() {
         });
     });
 
+    // 核心功能按钮
     document.getElementById('add-group-btn').addEventListener('click', addNewGroup);
     document.getElementById('save-config-btn').addEventListener('click', saveConfig);
     document.getElementById('reset-config-btn').addEventListener('click', () => {
         if(confirm('确定重置所有未保存的修改吗？')) openSettingsModal();
     });
 
+    // 背景图片上传
     document.getElementById('bg-file-input').addEventListener('change', handleBgUpload);
 
+    // Dialog 事件
     setupDialogEvents();
 
+    // 导入导出
     document.getElementById('export-config-btn').addEventListener('click', exportConfig);
     document.getElementById('import-config-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
     document.getElementById('import-file-input').addEventListener('change', importConfig);
@@ -95,7 +101,7 @@ function createGroupElement(name, items) {
     });
 
     const listEl = div.querySelector('.editor-items-list');
-    
+
     // 渲染卡片
     items.forEach(item => {
         listEl.appendChild(createCardElement(item));
@@ -117,13 +123,13 @@ function createCardElement(item) {
     div.dataset.name = item.name;
     div.dataset.url = item.url;
     div.dataset.icon = item.icon;
-    
+
+    // 这里移除了 .edit-hint 遮罩层
     div.innerHTML = `
         <img src="${item.icon || ''}" onerror="this.style.display='none'">
         <span>${item.name}</span>
-        <div class="edit-hint">编辑</div>
     `;
-    
+
     // 点击卡片打开编辑
     div.addEventListener('click', () => openEditDialog(div));
     return div;
@@ -143,12 +149,14 @@ function addNewGroup() {
 function initSortable() {
     const board = document.getElementById('editor-board');
 
+    // 分类之间的排序
     Sortable.create(board, {
         handle: '.drag-handle-group',
         animation: 150,
         ghostClass: 'sortable-ghost'
     });
 
+    // 卡片在分类之间穿梭
     document.querySelectorAll('.editor-items-list').forEach(list => {
         Sortable.create(list, {
             group: 'shared-items', // 允许跨列表
@@ -163,7 +171,7 @@ function initSortable() {
 
 function setupDialogEvents() {
     const form = document.getElementById('item-editor-form');
-    
+
     // 图标预览
     document.getElementById('edit-icon').addEventListener('input', (e) => {
         document.getElementById('edit-preview-img').src = e.target.value;
@@ -211,7 +219,7 @@ function setupDialogEvents() {
             updateCardElement(editingItemElement, data);
         } else {
             // 新增卡片 (targetList 在 openEditDialog 中暂存)
-            const targetList = window.targetAddList; 
+            const targetList = window.targetAddList;
             const newCard = createCardElement(data);
             targetList.insertBefore(newCard, targetList.lastElementChild); // 插在按钮前面
         }
@@ -221,7 +229,7 @@ function setupDialogEvents() {
 
 function openEditDialog(cardElement, addButtonElement = null) {
     editingItemElement = cardElement;
-    
+
     if (cardElement) {
         // 编辑模式
         document.getElementById('edit-name').value = cardElement.dataset.name;
@@ -236,7 +244,7 @@ function openEditDialog(cardElement, addButtonElement = null) {
         document.getElementById('delete-item-btn').classList.add('hidden');
         window.targetAddList = addButtonElement.parentElement; // 记住要加到哪个列表
     }
-    
+
     editorDialog.showModal();
 }
 
@@ -256,6 +264,7 @@ async function saveConfig() {
     btn.textContent = '保存中...';
     btn.disabled = true;
 
+    // 从 App Settings 表单获取基础数据
     const form = document.getElementById('app-settings-form');
     const config = {
         pageTitle: form.pageTitle.value,
@@ -266,6 +275,7 @@ async function saveConfig() {
         groups: []
     };
 
+    // 从 DOM 树中“刮取”布局数据 (What you see is what you save)
     document.querySelectorAll('.editor-group').forEach(groupEl => {
         const groupName = groupEl.querySelector('.group-name-input').value;
         const items = [];
@@ -279,6 +289,7 @@ async function saveConfig() {
         config.groups.push({ name: groupName, items: items });
     });
 
+    // 发送 API
     try {
         let token = localStorage.getItem(SAVE_TOKEN_STORAGE_KEY);
         if (!token) {
@@ -302,18 +313,20 @@ async function saveConfig() {
     }
 }
 
+// --- 辅助函数 (Settings Tab) ---
+
 function populateAppSettings(config) {
     document.getElementById('page-title-input').value = config.pageTitle || '';
     document.getElementById('theme-select').value = config.theme || 'auto';
-    
+
     const bgType = config.backgroundType === 'image' ? 'image' : 'color';
     document.querySelector(`input[name="backgroundType"][value="${bgType}"]`).checked = true;
-    
+
     document.getElementById('bg-color-input').value = config.backgroundColor || '#f0f2f5';
     document.getElementById('bg-image-input').value = config.backgroundImage || '';
-    
+
     toggleBgInputs();
-    document.querySelectorAll('input[name="backgroundType"]').forEach(r => 
+    document.querySelectorAll('input[name="backgroundType"]').forEach(r =>
         r.addEventListener('change', toggleBgInputs)
     );
 }
@@ -333,6 +346,7 @@ function handleBgUpload(e) {
 }
 
 function exportConfig() {
+    // 简单导出当前内存中的配置（注意：这不一定是界面上修改后的，建议用户先保存）
     const dataStr = JSON.stringify(currentConfig, null, 2);
     const blob = new Blob([dataStr], {type: "application/json"});
     const url = URL.createObjectURL(blob);

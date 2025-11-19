@@ -1,5 +1,4 @@
 /* --- Starlane | Minimal Solid Theme --- */
-/* 保持原有的基础变量和重置，仅修改设置部分 */
 
 /* 0. 全局禁用动画与过渡，确保极致性能 */
 * { animation: none !important; transition: none !important; }
@@ -103,7 +102,7 @@ header { text-align: center; margin-bottom: 28px; }
 .tab-content { display: none; padding: 20px; overflow-y: auto; flex: 1; }
 .tab-content.active { display: block; }
 
-/* --- NEW: 编辑器板 (Editor Board) --- */
+/* --- 编辑器板 (Editor Board) --- */
 #layout-tab { display: none; flex-direction: column; gap: 16px; }
 #layout-tab.active { display: flex; }
 .editor-toolbar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; }
@@ -138,19 +137,27 @@ header { text-align: center; margin-bottom: 28px; }
     min-height: 60px; /* 保证空列表也能被拖入 */
 }
 .editor-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 10px; display: flex; align-items: center; gap: 10px; cursor: grab;
-    position: relative; user-select: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: grab;
+    position: relative;
+    user-select: none;
+    transition: border-color 0.15s, background-color 0.15s !important;
 }
-.editor-card:hover { border-color: var(--accent); }
+.editor-card:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-weak);
+}
+.editor-card:active {
+    cursor: grabbing;
+}
 .editor-card img { width: 28px; height: 28px; border-radius: 4px; object-fit: cover; pointer-events: none; }
 .editor-card span { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.editor-card .edit-hint {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.05); opacity: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 600; color: var(--accent);
-}
-.editor-card:hover .edit-hint { opacity: 1; }
 
 .add-item-btn {
     border: 1px dashed var(--border); background: transparent; color: var(--muted);
@@ -181,8 +188,35 @@ header { text-align: center; margin-bottom: 28px; }
 /* 页面设置表单 */
 .settings-form { display: flex; flex-direction: column; gap: 16px; max-width: 600px; margin: 0 auto; }
 .form-group { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 16px; }
-.settings-form input, .settings-form select { padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); width: 100%; }
-.radio-group { display: flex; gap: 20px; }
+.settings-form input:not([type="radio"]):not([type="checkbox"]):not([type="color"]),
+.settings-form select {
+    padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); width: 100%;
+}
+
+/* --- 修复单选按钮样式 --- */
+.settings-form input[type="radio"] {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+.radio-group {
+    display: flex; gap: 24px; align-items: center;
+}
+.radio-option {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; font-size: 14px; color: var(--text); user-select: none;
+}
+.radio-option:hover span { color: var(--accent); }
+
+/* 颜色选择器微调 */
+.settings-form input[type="color"] {
+    padding: 2px 4px; height: 36px; cursor: pointer; width: 100%; border: 1px solid var(--border); background: var(--bg); border-radius: var(--radius-sm);
+}
 
 /* --- Dialog 弹窗样式 --- */
 dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
@@ -195,7 +229,7 @@ dialog h3 { margin-top: 0; margin-bottom: 16px; font-size: 16px; }
 .form-group-vertical label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .form-group-vertical input {
     padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--bg); color: var(--text); font-size: 14px;
+    background: var(--bg); color: var(--text); font-size: 14px; width: 100%;
 }
 .form-group-vertical input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
 .icon-input-row { display: flex; gap: 8px; }
@@ -208,7 +242,7 @@ dialog h3 { margin-top: 0; margin-bottom: 16px; font-size: 16px; }
 
 .dialog-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .right-btns { display: flex; gap: 10px; }
-.danger-text { color: #d14343; border: none; background: none; padding: 0; }
+.danger-text { color: #d14343; border: none; background: none; padding: 0; cursor: pointer;}
 
 /* 移动端适配 */
 @media (max-width: 992px) {

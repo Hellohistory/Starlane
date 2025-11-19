@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script type="module" src="js/main.js" defer></script>
-    <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
 </head>
 <body>
 
@@ -17,7 +16,11 @@
 
     <nav id="sidebar">
         <div class="sidebar-header">
-            <h2 id="sidebar-title">Starlane</h2>
+            <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M32 18.5L35.7971 25.9069L44 26.5L37.8 32.2285L39.6942 40L32 35.5L24.3058 40L26.2 32.2285L20 26.5L28.2029 25.9069L32 18.5Z" fill="currentColor"/>
+                <path d="M50 32C50 42.4934 41.4934 51 31 51C20.5066 51 12 42.4934 12 32C12 21.5066 20.5066 13 31 13" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+            <h2 id="sidebar-title" style="display: inline-block;">Starlane</h2>
         </div>
         <ul id="sidebar-group-list">
         </ul>
@@ -87,10 +90,14 @@
                     <div class="form-group">
                         <label>背景设置</label>
                         <div class="radio-group">
-                            <input type="radio" id="bg-type-color" name="backgroundType" value="color" checked>
-                            <label for="bg-type-color">纯色</label>
-                            <input type="radio" id="bg-type-image" name="backgroundType" value="image">
-                            <label for="bg-type-image">图片</label>
+                            <label class="radio-option">
+                                <input type="radio" id="bg-type-color" name="backgroundType" value="color" checked>
+                                <span>纯色</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" id="bg-type-image" name="backgroundType" value="image">
+                                <span>图片</span>
+                            </label>
                         </div>
                     </div>
                     <div class="form-group" id="bg-color-wrapper">
@@ -158,7 +165,10 @@
     </dialog>
 
     <button id="settings-btn" class="settings-btn" title="设置">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <svg width="24" height="24" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M32 18.5L35.7971 25.9069L44 26.5L37.8 32.2285L39.6942 40L32 35.5L24.3058 40L26.2 32.2285L20 26.5L28.2029 25.9069L32 18.5Z" fill="currentColor"/>
+            <path d="M50 32C50 42.4934 41.4934 51 31 51C20.5066 51 12 42.4934 12 32C12 21.5066 20.5066 13 31 13" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </svg>
     </button>
 
 </body>
